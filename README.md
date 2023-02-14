@@ -1,3 +1,3 @@
 ## Credits
 
-XORMacroGenerator was inspired by [lokiuox/XORMacroGenerator](https://github.com/lokiuox/XORMacroGenerator).
+MacroFerroXOR was inspired by [lokiuox/XORMacroGenerator](https://github.com/lokiuox/XORMacroGenerator).
