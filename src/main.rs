@@ -1,31 +1,22 @@
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[clap(author="Marco Strambelli", version="0.1", about="A macro packer")]
 struct Args {
-   /// Key for XOR
-   #[arg(short, long)]
-   key: String,
-
-   /// URL to call
-   #[arg(short, long)]
-   lhost: String,
-
-   /// URL to call
-   #[arg(short, long, default_value_t="8002")]
-   lport: String,
-
-   /// Number of times to greet
-   #[arg(short, long, default_value_t="C:\\Users\\Public\\")]
-   rhost_local_path: String,
+    #[clap(short, long)]
+    key: String,
+    #[clap(long)]
+    lhost: String,
+    #[clap(long)]
+    lport: String,
+    #[clap(long)]
+    rhost_path: Option<String>
 }
 
 fn main() {
    let args = Args::parse();
 
-
-
-   for _ in 0..args.count {
-       println!("Hello {}!", args.name)
-   }
+   println!("{:?}",args.key);
+   println!("{:?}:{:?}",args.lhost,args.lport);
+   println!("{:?}",args.rhost_path);
 }
